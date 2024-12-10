@@ -11,20 +11,21 @@
 #define waterFlowSensor2ON 6
 #define waterFlowSensor2OFF 7
 
+volatile String incomingMessage = "";
 
-float lowestTemperature = 320;
-float highestTemperature = 910;
+volatile float lowestTemperature = 320;
+volatile float highestTemperature = 910;
 
-float chosenTemperature = 0; 
-bool waterflowStatus = 0;
+volatile float chosenTemperature = 0; 
+volatile bool waterflowStatus = 0;
 
-bool isSensor1Connected = false;
-bool isSensor2Connected = false;
+volatile bool isSensor1Connected = false;
+volatile bool isSensor2Connected = false;
 
-bool isSensorT1Connected = false;
-bool isSensorT2Connected = false;
+volatile bool isSensorT1Connected = false;
+volatile bool isSensorT2Connected = false;
 
-bool error = false;
+volatile bool error = false;
 
 
 
@@ -37,6 +38,18 @@ float readTemperature(int sensorPin) {
   int rawValue = analogRead(sensorPin);
   float temperature = map(rawValue, lowestTemperature, highestTemperature, 0, 100);
   return temperature;
+}
+
+String readUARTMessage() {
+  String incomingMessage = "";
+
+  while (Serial1.available() > 0) {
+    char receivedChar = Serial1.read();
+    incomingMessage += receivedChar;
+    delay(10);
+  }
+
+  return incomingMessage;
 }
 
 
@@ -63,17 +76,15 @@ void setup() {
 void loop() {
   while(1){ 
     //check if the sensors are connected correctly
-    if((digitalRead(waterFlowSensor1ON) && !digitalRead(waterFlowSensor1OFF)) || 
-      (!digitalRead(waterFlowSensor1ON) && digitalRead(waterFlowSensor1OFF)))
-
+    if(isSensorConnected(waterFlowSensor1ON, waterFlowSensor1OFF))
       isSensor1Connected = true;
+
     else
       isSensor1Connected = false;
 
-    if((digitalRead(waterFlowSensor2ON) && !digitalRead(waterFlowSensor2OFF)) || 
-      (!digitalRead(waterFlowSensor2ON) && digitalRead(waterFlowSensor2OFF)))
-
+    if(isSensorConnected(waterFlowSensor2ON, waterFlowSensor2OFF))
       isSensor2Connected = true;
+
     else
       isSensor2Connected = false;
 
@@ -106,7 +117,7 @@ void loop() {
 
     if(temperature1 > lowestTemperature && temperature1 < highestTemperature){
 
-      temperature1 = map(temperature1, lowestTemperature, highestTemperature, 0, 100);
+      temperature1 = readTemperature(temperatureSensor1);
       //Serial.print("Temperature 1: ");
       //Serial.println(temperature1);
       isSensorT1Connected = true;
@@ -116,14 +127,13 @@ void loop() {
 
     if(temperature2 > lowestTemperature && temperature2 < highestTemperature){
 
-      temperature2 = map(temperature2, lowestTemperature, highestTemperature, 0, 100);
+      temperature2 = readTemperature(temperatureSensor1);
       //Serial.print("Temperature 2: ");
       //Serial.println(temperature2);
       isSensorT2Connected = true;
     }
     else
       isSensorT2Connected = false;
-
 
 
     if(isSensorT1Connected && isSensorT2Connected){ 
@@ -151,14 +161,8 @@ void loop() {
 
     // Check if data is available on UART (Serial1)
     if (Serial1.available() > 0) {
-        String incomingMessage = "";
-
-        while (Serial1.available() > 0) {
-            char receivedChar = Serial1.read(); 
-            incomingMessage += receivedChar;   
-            delay(10);                         // Small delay to allow reception of full message
-        }
-
+        // Read the incoming message from the other system
+        String incomingMessage = readUARTMessage();
         // Print the received message to the Serial Monitor
         Serial.print("Received message via UART: ");
         Serial.println(incomingMessage);
